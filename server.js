@@ -14,7 +14,7 @@ var cors = require('cors');
 const { Server } = require('socket.io');
 
 var corsOptions = {
-    origin: 'http://localhost:3000',
+    origin: 'https://witty-pond-0966b9610.3.azurestaticapps.net',
     methods: ["GET", "POST"],
     credentials: true,
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
@@ -28,9 +28,12 @@ const io = new Server(server, {
 app.use(cors(corsOptions));
 app.use(express.static('public'));
 
-server.listen(4000, function () {
-    console.log("server started at port 4000");
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'UP' });
 });
+
+const port = process.env.PORT || 4000; // fallback to 4000 if process.env.PORT is not available
+server.listen(port, () => console.log(`Listening on port ${port}`));
 
 io.on("connection", (socket) => {
     console.log('Client connected');
