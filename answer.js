@@ -68,9 +68,19 @@ class TravelBot {
     switch (topic) {
       case 'localAttractions':
       case 'activities':
+        if (question.toLowerCase().includes("tell me more about")) {
+          response += info['description']
+          response += `It has a rating of ${info['rating']}. `;
+          response += `It is open between ${info['workingHours']}. `;
+          response += `The entry price is ${info['price']}. `;
+          response += `It's located at ${info['location']}.`;
+          response += info['tips']
+        }
+
         if (["description", "info", "information"].some(keyword => question.toLowerCase().includes(keyword))) {
           response += info['description']
         }
+
         if (["rating", "review", "review", "point"].some(keyword => question.toLowerCase().includes(keyword))) {
           response += `It has a rating of ${info['rating']}. `;
         }
