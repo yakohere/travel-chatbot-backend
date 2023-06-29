@@ -14,7 +14,8 @@ var cors = require('cors');
 const { Server } = require('socket.io');
 
 var corsOptions = {
-    origin: 'https://witty-pond-0966b9610.3.azurestaticapps.net',
+    origin: 'http://localhost:3000',
+    // origin: 'https://witty-pond-0966b9610.3.azurestaticapps.net',
     methods: ["GET", "POST"],
     credentials: true,
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204

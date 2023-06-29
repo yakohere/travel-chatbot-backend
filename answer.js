@@ -1,10 +1,13 @@
 const { database } = require("./databse");
+const FuzzySet = require('fuzzyset.js');
+const nlp = require('compromise');
 
 class TravelBot {
   constructor() {
     this.lastCity = null;
     this.lastTopic = null;
     this.failCounter = 0;
+    this.hasCurrentQuestionTopic = false;
   }
 
   // Helper function to determine city from a sentence
@@ -21,19 +24,20 @@ class TravelBot {
   // Helper function to find keywords in a question
   detectKeyword(question) {
     const keywordsByTopic = {
-      'localAttractions': ['attractions', 'visit', 'see', 'sights'],
-      'localCuisine': ['food', 'cuisine', 'eat', 'dishes', 'delicious'],
-      'natureSpots': ['nature', 'parks', 'outdoors', 'scenery'],
-      'activities': ['activities', 'do', 'perform', 'actions'],
+      localAttractions: ["attractions", "visit", "see", "sights"],
+      localCuisine: ["food", "cuisine", "eat", "dishes", "delicious"],
+      activities: ["activities", "do", "perform", "actions"],
     };
 
     for (let topic in keywordsByTopic) {
-      if (keywordsByTopic[topic].some(keyword => question.toLowerCase().includes(keyword))) {
+      if (this.keywordFind(keywordsByTopic[topic], question)) {
         this.lastTopic = topic;
+        this.hasCurrentQuestionTopic = true;
         return topic;
       }
     }
 
+    this.hasCurrentQuestionTopic = false;
     return this.lastTopic;
   }
 
@@ -42,13 +46,26 @@ class TravelBot {
       return null;
     }
 
-    for (let item in database[city][topic]) {
-      if (question.toLowerCase().includes(item.toLowerCase())) {
-        return item;
-      }
+    // Get a list of all items
+    let items = Object.keys(database[city][topic]);
+
+    // Create a new fuzzy set with these items
+    // We are using FuzzySet so that simple typos won't break the conversation
+    let fset = FuzzySet(items);
+
+    // Get a match from the fuzzy set
+    let result = fset.get(question);
+
+    // If a match was found, return it
+    if (result) {
+        return result[0][1];
     }
 
     return null;
+  }
+
+  keywordFind(keywords, question) {
+    return keywords.some(keyword => question.toLowerCase().includes(keyword));
   }
 
   answerQuestion(city, topic, item, question) {
@@ -64,49 +81,101 @@ class TravelBot {
 
     let info = database[city][topic][item];
     let response = "";
+    
+    let topicKeys = ["tell me about", "tell me more about"];
+    let descriptionKeys = ["description", "info", "information"];
+    let ratingKeys = ["rating", "review", "review", "point"];
+    let hoursKeys = ["hour", "working", "open", "close"];
+    let priceKeys = ["price", "how much", "ticket", "buy"];
+    let locationKeys = ["where", "location", "address", "located"];
+    let tipsKeys = ["tips", "advice", "recommend"];
 
     switch (topic) {
-      case 'localAttractions':
-      case 'activities':
-        if (question.toLowerCase().includes("tell me more about")) {
-          response += info['description']
-          response += `It has a rating of ${info['rating']}. `;
-          response += `It is open between ${info['workingHours']}. `;
-          response += `The entry price is ${info['price']}. `;
-          response += `It's located at ${info['location']}.`;
-          response += info['tips']
+      case "localAttractions":
+        if (this.keywordFind(topicKeys, question)) {
+          response += info["description"];
+          response += `It has a rating of ${info["rating"]}. `;
+          response += `It is open between ${info["workingHours"]}. `;
+          response += `The entry price is ${info["price"]}. `;
+          response += `It's located at ${info["location"]}.`;
+          response += info["tips"];
+        }
+        
+        if (this.keywordFind(descriptionKeys, question)) {
+          response += info["description"];
         }
 
-        if (["description", "info", "information"].some(keyword => question.toLowerCase().includes(keyword))) {
-          response += info['description']
+        if (this.keywordFind(ratingKeys, question)) {
+          response += `It has a rating of ${info["rating"]}. `;
         }
 
-        if (["rating", "review", "review", "point"].some(keyword => question.toLowerCase().includes(keyword))) {
-          response += `It has a rating of ${info['rating']}. `;
+        if (this.keywordFind(hoursKeys, question)) {
+          response += `It is open between ${info["workingHours"]}. `;
         }
 
-        if (["hour", "working", "open", "close"].some(keyword => question.toLowerCase().includes(keyword))) {
-          response += `It is open between ${info['workingHours']}. `;
+        if (this.keywordFind(priceKeys, question)) {
+          response += `The entry price is ${info["price"]}. `;
         }
 
-        if (["price", "how much", "ticket", "buy"].some(keyword => question.toLowerCase().includes(keyword))) {
-          response += `The entry price is ${info['price']}. `;
+        if (this.keywordFind(locationKeys, question)) {
+          response += `It's located at ${info["location"]}.`;
         }
 
-        if (["where", "location", "address", "located"].some(keyword => question.toLowerCase().includes(keyword))) {
-          response += `It's located at ${info['location']}.`;
-        }
-
-        if (["tips", "advice", "recommend"].some(keyword => question.toLowerCase().includes(keyword))) {
-          response += info['tips']
+        if (this.keywordFind(tipsKeys, question)) {
+          response += info["tips"];
         }
 
         break;
+      case "activities":
+        if (this.keywordFind(topicKeys, question)) {
+          response += info["description"];
+          response += `It has a rating of ${info["rating"]}. `;
+          response += `The entry price is ${info["price"]}. `;
+          response += `The items you will need is: ${info["itemsNeeded"]}.`;
+          response += info["tips"];
+        }
 
-      case 'localCuisine':
-        response += `The ${item} in ${city} includes the following ingredients: ${info['ingredients'].join(", ")}. `;
-        response += `The average price is ${info['price']}. `;
-        response += `${info['description']} It's recommended to try this at ${info['recommendedPlaces'].join(", ")}.`;
+        if (this.keywordFind(descriptionKeys, question)) {
+          response += info["description"];
+        }
+
+        if (this.keywordFind(ratingKeys, question)) {
+          response += `It has a rating of ${info["rating"]}. `;
+        }
+
+        if (this.keywordFind(priceKeys, question)) {
+          response += `The entry price is ${info["price"]}. `;
+        }
+
+        if (this.keywordFind(tipsKeys, question)) {
+          response += info["tips"];
+        }
+
+        if (this.keywordFind(["items", "need", "recommend"], question)) {
+          response += info["itemsNeeded"];
+        }
+
+        break
+      case "localCuisine":
+        if (this.keywordFind(topicKeys, question)) {
+          response += info["description"];
+          response += `The entry price is ${info["price"]}. `;
+          response += `The ingredients of this dish is: ${info["ingredients"]}.`;
+        }
+
+        if (this.keywordFind(["ingredients", "include", "contain"], question)) {
+          response += `The ${item} in ${city} includes the following ingredients: ${info[
+            "ingredients"
+          ].join(", ")}. `;
+        }
+
+        if (this.keywordFind(priceKeys, question)) {
+          response += `The average price is ${info["price"]}. `;
+        }
+
+        if (this.keywordFind(descriptionKeys, question)) {
+          response += `${info["description"]} It's recommended to try this at ${info["recommendedPlaces"].join(", ")}.`;
+        }
         break;
     }
 
@@ -116,27 +185,29 @@ class TravelBot {
   getTopicDescription(topic, city) {
     let items = null;
     switch (topic) {
-      case 'localAttractions':
-      case 'localCuisine':
-      case 'activities':
+      case "localAttractions":
+      case "localCuisine":
+      case "activities":
         items = Object.keys(database[city][topic]);
-        break;
-      case 'natureSpots':
-        items = database[city][topic].map(spot => spot.name);
         break;
     }
 
     switch (topic) {
-      case 'localAttractions':
-        return `I recommend visiting these places: ${items.join(", ")}. For more information about a specific place, please mention it in your question.`;
-      case 'localCuisine':
-        return `you should try these local dishes: ${items.join(", ")}. For more information about a specific dish, please mention it in your question.`;
-      case 'natureSpots':
-        return `these are some beautiful nature spots: ${items.join(", ")}. For more information about a specific nature spot, please mention it in your question.`;
-      case 'activities':
-        return `these are some activities you can enjoy: ${items.join(", ")}. For more information about a specific activity, please mention it in your question.`;
+      case "localAttractions":
+        return `I recommend visiting these places: ${items.join(
+          ", "
+        )}. For more information about a specific place, please mention it in your question.`;
+      case "localCuisine":
+        return `you should try these local dishes: ${items.join(
+          ", "
+        )}. For more information about a specific dish, please mention it in your question.`;
+
+      case "activities":
+        return `these are some activities you can enjoy: ${items.join(
+          ", "
+        )}. For more information about a specific activity, please mention it in your question.`;
       default:
-        return 'I\'m sorry, I couldn\'t understand your question.';
+        return "I'm sorry, I couldn't understand your question.";
     }
   }
 
@@ -145,44 +216,77 @@ class TravelBot {
     const topic = this.detectKeyword(question);
     const item = this.detectItem(question, city, topic);
 
-    if (!city && !this.lastCity) {
-      this.failCounter++;
-    } else if (!topic && !this.lastTopic) {
-      this.failCounter++;
-    } else {
-      // Reset the counter if the bot understands the question
-      this.failCounter = 0;
-    }
+    console.log("city", city)
+    console.log("topic", topic)
+    console.log("item", item)
+    console.log("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
 
     // If the bot fails too many times, start over
     if (this.failCounter >= 3) {
       this.failCounter = 0;
       this.lastCity = null;
       this.lastTopic = null;
-      return 'Let\'s start over. Could you please tell me which city you are interested in?';
+      return "Let's start over. Could you please tell me which city you are interested in?";
     }
 
+    // Check if there is city, topic and item
+    if (!city && !topic && !item) {
+      this.failCounter++;
+      return "I'm sorry, I didn't understand your question. Could you please provide more details?";
+    }
+
+    // Check if the question contains meaningful data
+    if (!this.isQuestionValid(question)) {
+      this.failCounter++;
+      return "I'm sorry, I didn't understand your question. Could you please provide more details?";
+    }
+
+    // Check if the current question contains topic or item
+    if (!this.hasCurrentQuestionTopic && !item) {
+      this.failCounter++;
+      return "I'm sorry, I didn't understand your question. Could you please provide more details?";
+    }
+
+    // Reset the counter if the bot understands the question
+    this.failCounter = 0;
+    
     if (!city) {
       // If there is no city detected and also no last city remembered, ask for city
-      return 'Could you specify which city you are interested in?';
+      return "Could you specify which city you are interested in?";
     }
 
     if (!topic) {
       // If there is no topic detected and also no last topic remembered, ask for topic
-      return 'Could you clarify your question? Are you interested in local attractions, cuisine, nature spots, or activities?';
+      return "Could you clarify your question? Are you interested in local attractions, cuisine, or activities?";
     }
 
     if (item) {
       return this.answerQuestion(city, topic, item, question);
-    } else {
+    }
+
+    if (city && topic) {
       return `In ${city}, ${this.getTopicDescription(topic, city)}`;
     }
   }
 
+  isQuestionValid(question) {
+    let doc = nlp(question);
+  
+    // Checks if the sentence contains a question
+    if (doc.sentences().isQuestion().out('array').length > 0) {
+      return true;
+    }
+
+    if (question.toLowerCase().includes("tell me")) {
+      return true;
+    }
+    
+    return false;
+  }
 }
 
 const bot = new TravelBot();
 
 module.exports = {
-  bot
-}
+  bot,
+};

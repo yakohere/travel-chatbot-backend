@@ -10,8 +10,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "compromise": "^14.9.0",
     "cors": "^2.8.5",
     "express": "^4.17.3",
+    "fuzzyset.js": "^1.0.7",
     "socket.io": "^4.4.1"
   }
 }
