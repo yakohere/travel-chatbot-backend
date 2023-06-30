@@ -216,11 +216,6 @@ class TravelBot {
     const topic = this.detectKeyword(question);
     const item = this.detectItem(question, city, topic);
 
-    console.log("city", city)
-    console.log("topic", topic)
-    console.log("item", item)
-    console.log("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=")
-
     // If the bot fails too many times, start over
     if (this.failCounter >= 3) {
       this.failCounter = 0;
@@ -278,6 +273,10 @@ class TravelBot {
     }
 
     if (question.toLowerCase().includes("tell me")) {
+      return true;
+    }
+
+    if (question.toLowerCase().includes("give me")) {
       return true;
     }
     
