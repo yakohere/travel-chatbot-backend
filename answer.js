@@ -46,7 +46,6 @@ class TravelBot {
       return null;
     }
 
-    // Get a list of all items
     let items = Object.keys(database[city][topic]);
 
     // Create a new fuzzy set with these items
@@ -56,7 +55,6 @@ class TravelBot {
     // Get a match from the fuzzy set
     let result = fset.get(question);
 
-    // If a match was found, return it
     if (result) {
         return result[0][1];
     }
@@ -83,9 +81,9 @@ class TravelBot {
     let response = "";
     
     let topicKeys = ["tell me about", "tell me more about"];
-    let descriptionKeys = ["description", "info", "information"];
+    let descriptionKeys = ["description", "info", "information", "desc"];
     let ratingKeys = ["rating", "review", "review", "point"];
-    let hoursKeys = ["hour", "working", "open", "close"];
+    let hoursKeys = ["hours", "open", "close", "hour", "working hours"];
     let priceKeys = ["price", "how much", "ticket", "buy"];
     let locationKeys = ["where", "location", "address", "located"];
     let tipsKeys = ["tips", "advice", "recommend"];
@@ -161,6 +159,7 @@ class TravelBot {
           response += info["description"];
           response += `The entry price is ${info["price"]}. `;
           response += `The ingredients of this dish is: ${info["ingredients"]}.`;
+          response += `You should try this food at: ${info["recommendedPlaces"].join(", ")}.`;
         }
 
         if (this.keywordFind(["ingredients", "include", "contain"], question)) {
@@ -174,8 +173,13 @@ class TravelBot {
         }
 
         if (this.keywordFind(descriptionKeys, question)) {
-          response += `${info["description"]} It's recommended to try this at ${info["recommendedPlaces"].join(", ")}.`;
+          response += `${info["description"]}.`;
         }
+
+        if (this.keywordFind(["where", "recommended places"], question)) {
+          response += `You should try this food at: ${info["recommendedPlaces"].join(", ")}.`;
+        }
+        
         break;
     }
 
